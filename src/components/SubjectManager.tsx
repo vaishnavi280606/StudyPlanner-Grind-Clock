@@ -7,6 +7,7 @@ interface SubjectManagerProps {
   onAddSubject: (subject: Omit<Subject, 'id'>) => void;
   onUpdateSubject: (id: string, subject: Partial<Subject>) => void;
   onDeleteSubject: (id: string) => void;
+  isDarkMode: boolean;
 }
 
 const COLORS = [
@@ -19,6 +20,7 @@ export function SubjectManager({
   onAddSubject,
   onUpdateSubject,
   onDeleteSubject,
+  isDarkMode,
 }: SubjectManagerProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -75,11 +77,11 @@ export function SubjectManager({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-slate-900">My Subjects</h2>
+        <h2 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>My Subjects</h2>
         {!isAdding && (
           <button
             onClick={() => setIsAdding(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-lg hover:from-amber-600 hover:to-orange-700 transition-colors"
           >
             <Plus size={20} />
             Add Subject
@@ -88,13 +90,13 @@ export function SubjectManager({
       </div>
 
       {isAdding && (
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl p-6 shadow-md border border-slate-200">
-          <h3 className="text-lg font-semibold text-slate-900 mb-4">
+        <form onSubmit={handleSubmit} className={`rounded-xl p-6 shadow-md border transition-colors ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
+          <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
             {editingId ? 'Edit Subject' : 'New Subject'}
           </h3>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
+              <label className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
                 Subject Name
               </label>
               <input
@@ -102,13 +104,13 @@ export function SubjectManager({
                 required
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent ${isDarkMode ? 'bg-slate-700 border-slate-600 text-white placeholder-slate-400' : 'border-slate-300'}`}
                 placeholder="e.g., Mathematics"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
                 Color
               </label>
               <div className="flex gap-2 flex-wrap">
@@ -128,7 +130,7 @@ export function SubjectManager({
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
+                <label className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
                   Difficulty (1-5)
                 </label>
                 <input
@@ -138,12 +140,12 @@ export function SubjectManager({
                   required
                   value={formData.difficulty}
                   onChange={(e) => setFormData({ ...formData, difficulty: parseInt(e.target.value) })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent ${isDarkMode ? 'bg-slate-700 border-slate-600 text-white' : 'border-slate-300'}`}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
+                <label className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
                   Priority (1-5)
                 </label>
                 <input
@@ -153,12 +155,12 @@ export function SubjectManager({
                   required
                   value={formData.priority}
                   onChange={(e) => setFormData({ ...formData, priority: parseInt(e.target.value) })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent ${isDarkMode ? 'bg-slate-700 border-slate-600 text-white' : 'border-slate-300'}`}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
+                <label className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
                   Target hrs/week
                 </label>
                 <input
@@ -167,7 +169,7 @@ export function SubjectManager({
                   required
                   value={formData.targetHoursPerWeek}
                   onChange={(e) => setFormData({ ...formData, targetHoursPerWeek: parseInt(e.target.value) })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent ${isDarkMode ? 'bg-slate-700 border-slate-600 text-white' : 'border-slate-300'}`}
                 />
               </div>
             </div>
@@ -175,14 +177,14 @@ export function SubjectManager({
             <div className="flex gap-2">
               <button
                 type="submit"
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="flex-1 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-lg hover:from-amber-600 hover:to-orange-700 transition-colors"
               >
                 {editingId ? 'Update' : 'Add'} Subject
               </button>
               <button
                 type="button"
                 onClick={handleCancel}
-                className="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors"
+                className={`px-4 py-2 rounded-lg transition-colors ${isDarkMode ? 'bg-slate-700 text-slate-300 hover:bg-slate-600' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
               >
                 Cancel
               </button>
@@ -192,16 +194,16 @@ export function SubjectManager({
       )}
 
       {subjects.length === 0 ? (
-        <div className="bg-white rounded-xl p-12 shadow-md border border-slate-200 text-center">
-          <BookOpen className="mx-auto text-slate-400 mb-4" size={48} />
-          <p className="text-slate-600">No subjects yet. Add your first subject to get started!</p>
+        <div className={`rounded-xl p-12 shadow-md border text-center ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
+          <BookOpen className={`mx-auto mb-4 ${isDarkMode ? 'text-slate-600' : 'text-slate-400'}`} size={48} />
+          <p className={`${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>No subjects yet. Add your first subject to get started!</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {subjects.map((subject) => (
             <div
               key={subject.id}
-              className="bg-white rounded-xl p-6 shadow-md border border-slate-200 hover:shadow-lg transition-all"
+              className={`rounded-xl p-6 shadow-md border hover:shadow-lg transition-all ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}
             >
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-2">
@@ -209,24 +211,24 @@ export function SubjectManager({
                     className="w-4 h-4 rounded-full"
                     style={{ backgroundColor: subject.color }}
                   />
-                  <h3 className="font-bold text-slate-900">{subject.name}</h3>
+                  <h3 className={`font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{subject.name}</h3>
                 </div>
                 <div className="flex gap-1">
                   <button
                     onClick={() => handleEdit(subject)}
-                    className="p-1 text-slate-400 hover:text-blue-600 transition-colors"
+                    className={`p-1 transition-colors ${isDarkMode ? 'text-slate-500 hover:text-amber-400' : 'text-slate-400 hover:text-blue-600'}`}
                   >
                     <Edit2 size={16} />
                   </button>
                   <button
                     onClick={() => onDeleteSubject(subject.id)}
-                    className="p-1 text-slate-400 hover:text-red-600 transition-colors"
+                    className={`p-1 transition-colors ${isDarkMode ? 'text-slate-500 hover:text-red-400' : 'text-slate-400 hover:text-red-600'}`}
                   >
                     <Trash2 size={16} />
                   </button>
                 </div>
               </div>
-              <div className="space-y-2 text-sm text-slate-600">
+              <div className={`space-y-2 text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
                 <div className="flex justify-between">
                   <span>Difficulty:</span>
                   <span className="font-medium">{'⭐'.repeat(subject.difficulty)}</span>

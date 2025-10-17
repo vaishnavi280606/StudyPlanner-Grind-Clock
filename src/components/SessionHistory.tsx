@@ -4,9 +4,10 @@ import { StudySession, Subject } from '../types';
 interface SessionHistoryProps {
   sessions: StudySession[];
   subjects: Subject[];
+  isDarkMode: boolean;
 }
 
-export function SessionHistory({ sessions, subjects }: SessionHistoryProps) {
+export function SessionHistory({ sessions, subjects, isDarkMode }: SessionHistoryProps) {
   const sortedSessions = [...sessions]
     .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
     .slice(0, 20);
@@ -36,19 +37,19 @@ export function SessionHistory({ sessions, subjects }: SessionHistoryProps) {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-2xl font-bold text-slate-900">Session History</h2>
+      <h2 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Session History</h2>
 
       {sortedSessions.length === 0 ? (
-        <div className="bg-white rounded-xl p-12 shadow-md border border-slate-200 text-center">
-          <Calendar className="mx-auto text-slate-400 mb-4" size={48} />
-          <p className="text-slate-600">No study sessions yet. Start your first session!</p>
+        <div className={`rounded-xl p-12 shadow-md border text-center ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
+          <Calendar className={`mx-auto mb-4 ${isDarkMode ? 'text-slate-600' : 'text-slate-400'}`} size={48} />
+          <p className={`${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>No grind sessions yet. Start your first session!</p>
         </div>
       ) : (
         <div className="space-y-3">
           {sortedSessions.map((session) => (
             <div
               key={session.id}
-              className="bg-white rounded-xl p-6 shadow-md border border-slate-200 hover:shadow-lg transition-all"
+              className={`rounded-xl p-6 shadow-md border hover:shadow-lg transition-all ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}
             >
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
@@ -57,10 +58,10 @@ export function SessionHistory({ sessions, subjects }: SessionHistoryProps) {
                     style={{ backgroundColor: getSubjectColor(session.subjectId) }}
                   />
                   <div>
-                    <h3 className="font-bold text-slate-900">
+                    <h3 className={`font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
                       {getSubjectName(session.subjectId)}
                     </h3>
-                    <div className="flex items-center gap-2 text-sm text-slate-500 mt-1">
+                    <div className={`flex items-center gap-2 text-sm mt-1 ${isDarkMode ? 'text-slate-500' : 'text-slate-500'}`}>
                       <Calendar size={14} />
                       <span>{formatDate(session.startTime)}</span>
                       <span>•</span>
@@ -69,14 +70,14 @@ export function SessionHistory({ sessions, subjects }: SessionHistoryProps) {
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-1 text-slate-600">
+                  <div className={`flex items-center gap-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
                     <Clock size={16} />
                     <span className="text-sm font-medium">
                       {session.durationMinutes}m
                     </span>
                   </div>
                   {session.focusRating && (
-                    <div className="flex items-center gap-1 text-slate-600">
+                    <div className={`flex items-center gap-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
                       <Brain size={16} />
                       <span className="text-sm font-medium">{session.focusRating}/5</span>
                     </div>
@@ -85,8 +86,8 @@ export function SessionHistory({ sessions, subjects }: SessionHistoryProps) {
               </div>
 
               {session.notes && (
-                <div className="mt-3 pt-3 border-t border-slate-200">
-                  <div className="flex items-start gap-2 text-sm text-slate-600">
+                <div className={`mt-3 pt-3 border-t ${isDarkMode ? 'border-slate-700' : 'border-slate-200'}`}>
+                  <div className={`flex items-start gap-2 text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
                     <FileText size={16} className="flex-shrink-0 mt-0.5" />
                     <p>{session.notes}</p>
                   </div>

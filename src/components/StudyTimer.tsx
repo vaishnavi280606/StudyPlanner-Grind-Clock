@@ -5,9 +5,10 @@ import { Subject, StudySession } from '../types';
 interface StudyTimerProps {
   subjects: Subject[];
   onSessionComplete: (session: Omit<StudySession, 'id'>) => void;
+  isDarkMode: boolean;
 }
 
-export function StudyTimer({ subjects, onSessionComplete }: StudyTimerProps) {
+export function StudyTimer({ subjects, onSessionComplete, isDarkMode }: StudyTimerProps) {
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>('');
   const [isRunning, setIsRunning] = useState(false);
   const [startTime, setStartTime] = useState<Date | null>(null);
@@ -79,22 +80,22 @@ export function StudyTimer({ subjects, onSessionComplete }: StudyTimerProps) {
   };
 
   return (
-    <div className="bg-white rounded-xl p-8 shadow-md border border-slate-200">
+    <div className={`rounded-xl p-8 shadow-md border transition-colors ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
       <div className="flex items-center gap-3 mb-6">
-        <Clock className="text-blue-600" size={28} />
-        <h2 className="text-2xl font-bold text-slate-900">Study Timer</h2>
+        <Clock className="text-amber-600" size={28} />
+        <h2 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Grind Timer</h2>
       </div>
 
       {!isRunning && !startTime && (
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
               Select Subject
             </label>
             <select
               value={selectedSubjectId}
               onChange={(e) => setSelectedSubjectId(e.target.value)}
-              className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent ${isDarkMode ? 'bg-slate-700 border-slate-600 text-white' : 'border-slate-300'}`}
             >
               <option value="">Choose a subject...</option>
               {subjects.map((subject) => (
@@ -108,7 +109,7 @@ export function StudyTimer({ subjects, onSessionComplete }: StudyTimerProps) {
           <button
             onClick={handleStart}
             disabled={!selectedSubjectId}
-            className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed text-lg font-semibold"
+            className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-lg hover:from-amber-600 hover:to-orange-700 transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed text-lg font-semibold"
           >
             <Play size={24} />
             Start Session
@@ -119,18 +120,18 @@ export function StudyTimer({ subjects, onSessionComplete }: StudyTimerProps) {
       {startTime && (
         <div className="space-y-6">
           <div className="text-center">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 rounded-lg mb-4">
+            <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg mb-4 ${isDarkMode ? 'bg-slate-700' : 'bg-slate-100'}`}>
               <div
                 className="w-3 h-3 rounded-full"
                 style={{
                   backgroundColor: subjects.find((s) => s.id === selectedSubjectId)?.color,
                 }}
               />
-              <span className="font-medium text-slate-700">
+              <span className={`font-medium ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
                 {subjects.find((s) => s.id === selectedSubjectId)?.name}
               </span>
             </div>
-            <div className="text-6xl font-bold text-slate-900 mb-6 font-mono">
+            <div className={`text-6xl font-bold mb-6 font-mono ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
               {formatTime(elapsedSeconds)}
             </div>
           </div>
@@ -147,7 +148,7 @@ export function StudyTimer({ subjects, onSessionComplete }: StudyTimerProps) {
             ) : (
               <button
                 onClick={() => setIsRunning(true)}
-                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
+                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-lg hover:from-amber-600 hover:to-orange-700 transition-colors font-semibold"
               >
                 <Play size={20} />
                 Resume
@@ -163,20 +164,20 @@ export function StudyTimer({ subjects, onSessionComplete }: StudyTimerProps) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
               Session Notes
             </label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent ${isDarkMode ? 'bg-slate-700 border-slate-600 text-white placeholder-slate-400' : 'border-slate-300'}`}
               rows={3}
-              placeholder="What did you study? Any key takeaways?"
+              placeholder="What did you grind? Any key takeaways?"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
               Focus Rating: {focusRating}/5
             </label>
             <div className="flex gap-2">
@@ -187,8 +188,8 @@ export function StudyTimer({ subjects, onSessionComplete }: StudyTimerProps) {
                   onClick={() => setFocusRating(rating)}
                   className={`flex-1 py-2 rounded-lg font-medium transition-all ${
                     focusRating >= rating
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white'
+                      : isDarkMode ? 'bg-slate-700 text-slate-300 hover:bg-slate-600' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }`}
                 >
                   {rating}
