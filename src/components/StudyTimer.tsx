@@ -1,82 +1,57 @@
-import { useState, useEffect } from 'react';
 import { Play, Pause, Square, Clock } from 'lucide-react';
-import { Subject, StudySession } from '../types';
+import { Subject } from '../types';
+
+interface TimerState {
+  isRunning: boolean;
+  isPaused: boolean;
+  selectedSubjectId: string;
+  startTime: Date | null;
+  elapsedSeconds: number;
+  notes: string;
+  focusRating: number;
+}
 
 interface StudyTimerProps {
   subjects: Subject[];
-  onSessionComplete: (session: Omit<StudySession, 'id'>) => void;
+  timerState: TimerState;
+  onTimerStart: (subjectId: string) => void;
+  onTimerPause: () => void;
+  onTimerResume: () => void;
+  onTimerStop: () => void;
+  onTimerUpdate: (updates: Partial<TimerState>) => void;
+  formatTime: (seconds: number) => string;
   isDarkMode: boolean;
 }
 
-export function StudyTimer({ subjects, onSessionComplete, isDarkMode }: StudyTimerProps) {
-  const [selectedSubjectId, setSelectedSubjectId] = useState<string>('');
-  const [isRunning, setIsRunning] = useState(false);
-  const [startTime, setStartTime] = useState<Date | null>(null);
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [notes, setNotes] = useState('');
-  const [focusRating, setFocusRating] = useState<number>(3);
-
-  useEffect(() => {
-    let interval: number | undefined;
-    if (isRunning && startTime) {
-      interval = window.setInterval(() => {
-        const now = new Date();
-        setElapsedSeconds(Math.floor((now.getTime() - startTime.getTime()) / 1000));
-      }, 1000);
-    }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [isRunning, startTime]);
-
+export function StudyTimer({ 
+  subjects, 
+  timerState, 
+  onTimerStart, 
+  onTimerPause, 
+  onTimerResume, 
+  onTimerStop, 
+  onTimerUpdate, 
+  formatTime, 
+  isDarkMode 
+}: StudyTimerProps) {
   const handleStart = () => {
-    if (!selectedSubjectId) {
+    if (!timerState.selectedSubjectId) {
       alert('Please select a subject first');
       return;
     }
-    setStartTime(new Date());
-    setIsRunning(true);
+    onTimerStart(timerState.selectedSubjectId);
   };
 
-  const handlePause = () => {
-    setIsRunning(false);
+  const handleSubjectChange = (subjectId: string) => {
+    onTimerUpdate({ selectedSubjectId: subjectId });
   };
 
-  const handleStop = () => {
-    if (!startTime || !selectedSubjectId) return;
-
-    const endTime = new Date();
-    const durationMinutes = Math.floor(elapsedSeconds / 60);
-
-    if (durationMinutes < 1) {
-      alert('Session must be at least 1 minute long');
-      return;
-    }
-
-    const session: Omit<StudySession, 'id'> = {
-      subjectId: selectedSubjectId,
-      startTime,
-      endTime,
-      durationMinutes,
-      focusRating,
-      notes,
-      completed: true,
-    };
-
-    onSessionComplete(session);
-
-    setIsRunning(false);
-    setStartTime(null);
-    setElapsedSeconds(0);
-    setNotes('');
-    setFocusRating(3);
+  const handleNotesChange = (notes: string) => {
+    onTimerUpdate({ notes });
   };
 
-  const formatTime = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  const handleFocusRatingChange = (focusRating: number) => {
+    onTimerUpdate({ focusRating });
   };
 
   return (
@@ -86,15 +61,15 @@ export function StudyTimer({ subjects, onSessionComplete, isDarkMode }: StudyTim
         <h2 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Grind Timer</h2>
       </div>
 
-      {!isRunning && !startTime && (
+      {!timerState.isRunning && !timerState.startTime && (
         <div className="space-y-4">
           <div>
             <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
               Select Subject
             </label>
             <select
-              value={selectedSubjectId}
-              onChange={(e) => setSelectedSubjectId(e.target.value)}
+              value={timerState.selectedSubjectId}
+              onChange={(e) => handleSubjectChange(e.target.value)}
               className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent ${isDarkMode ? 'bg-slate-700 border-slate-600 text-white' : 'border-slate-300'}`}
             >
               <option value="">Choose a subject...</option>
@@ -108,7 +83,7 @@ export function StudyTimer({ subjects, onSessionComplete, isDarkMode }: StudyTim
 
           <button
             onClick={handleStart}
-            disabled={!selectedSubjectId}
+            disabled={!timerState.selectedSubjectId}
             className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-lg hover:from-amber-600 hover:to-orange-700 transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed text-lg font-semibold"
           >
             <Play size={24} />
@@ -117,29 +92,29 @@ export function StudyTimer({ subjects, onSessionComplete, isDarkMode }: StudyTim
         </div>
       )}
 
-      {startTime && (
+      {timerState.startTime && (
         <div className="space-y-6">
           <div className="text-center">
             <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg mb-4 ${isDarkMode ? 'bg-slate-700' : 'bg-slate-100'}`}>
               <div
                 className="w-3 h-3 rounded-full"
                 style={{
-                  backgroundColor: subjects.find((s) => s.id === selectedSubjectId)?.color,
+                  backgroundColor: subjects.find((s) => s.id === timerState.selectedSubjectId)?.color,
                 }}
               />
               <span className={`font-medium ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
-                {subjects.find((s) => s.id === selectedSubjectId)?.name}
+                {subjects.find((s) => s.id === timerState.selectedSubjectId)?.name}
               </span>
             </div>
             <div className={`text-6xl font-bold mb-6 font-mono ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
-              {formatTime(elapsedSeconds)}
+              {formatTime(timerState.elapsedSeconds)}
             </div>
           </div>
 
           <div className="flex gap-3">
-            {isRunning ? (
+            {timerState.isRunning && !timerState.isPaused ? (
               <button
-                onClick={handlePause}
+                onClick={onTimerPause}
                 className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors font-semibold"
               >
                 <Pause size={20} />
@@ -147,7 +122,7 @@ export function StudyTimer({ subjects, onSessionComplete, isDarkMode }: StudyTim
               </button>
             ) : (
               <button
-                onClick={() => setIsRunning(true)}
+                onClick={onTimerResume}
                 className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-lg hover:from-amber-600 hover:to-orange-700 transition-colors font-semibold"
               >
                 <Play size={20} />
@@ -155,7 +130,7 @@ export function StudyTimer({ subjects, onSessionComplete, isDarkMode }: StudyTim
               </button>
             )}
             <button
-              onClick={handleStop}
+              onClick={onTimerStop}
               className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-semibold"
             >
               <Square size={20} />
@@ -168,8 +143,8 @@ export function StudyTimer({ subjects, onSessionComplete, isDarkMode }: StudyTim
               Session Notes
             </label>
             <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
+              value={timerState.notes}
+              onChange={(e) => handleNotesChange(e.target.value)}
               className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent ${isDarkMode ? 'bg-slate-700 border-slate-600 text-white placeholder-slate-400' : 'border-slate-300'}`}
               rows={3}
               placeholder="What did you grind? Any key takeaways?"
@@ -178,16 +153,16 @@ export function StudyTimer({ subjects, onSessionComplete, isDarkMode }: StudyTim
 
           <div>
             <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
-              Focus Rating: {focusRating}/5
+              Focus Rating: {timerState.focusRating}/5
             </label>
             <div className="flex gap-2">
               {[1, 2, 3, 4, 5].map((rating) => (
                 <button
                   key={rating}
                   type="button"
-                  onClick={() => setFocusRating(rating)}
+                  onClick={() => handleFocusRatingChange(rating)}
                   className={`flex-1 py-2 rounded-lg font-medium transition-all ${
-                    focusRating >= rating
+                    timerState.focusRating >= rating
                       ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white'
                       : isDarkMode ? 'bg-slate-700 text-slate-300 hover:bg-slate-600' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }`}

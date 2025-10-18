@@ -38,6 +38,51 @@ export const calculateStudyStats = (sessions: StudySession[], subjects: Subject[
   };
 };
 
+export const calculateDailyCompletionRate = (sessions: StudySession[], subjects: Subject[]) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const todaySessions = sessions.filter(s => {
+    const sessionDate = new Date(s.startTime);
+    sessionDate.setHours(0, 0, 0, 0);
+    return sessionDate.getTime() === today.getTime();
+  });
+
+  const todayMinutes = todaySessions.reduce((sum, s) => sum + (s.durationMinutes || 0), 0);
+  const todayHours = todayMinutes / 60;
+
+  const totalDailyTarget = subjects.reduce((sum, subject) => {
+    return sum + (subject.targetHoursPerDay || 0);
+  }, 0);
+
+  const dailyCompletionRate = totalDailyTarget > 0 
+    ? Math.round((todayHours / totalDailyTarget) * 100)
+    : 0;
+
+  const subjectProgress = subjects.map(subject => {
+    const subjectTodaySessions = todaySessions.filter(s => s.subjectId === subject.id);
+    const subjectTodayMinutes = subjectTodaySessions.reduce((sum, s) => sum + (s.durationMinutes || 0), 0);
+    const subjectTodayHours = subjectTodayMinutes / 60;
+    const subjectTarget = subject.targetHoursPerDay || 0;
+    const subjectCompletion = subjectTarget > 0 ? Math.round((subjectTodayHours / subjectTarget) * 100) : 0;
+
+    return {
+      subject: subject.name,
+      color: subject.color,
+      hoursStudied: Math.round(subjectTodayHours * 10) / 10,
+      targetHours: subjectTarget,
+      completionRate: Math.min(subjectCompletion, 100),
+    };
+  }).filter(s => s.targetHours > 0);
+
+  return {
+    todayHours: Math.round(todayHours * 10) / 10,
+    totalDailyTarget,
+    dailyCompletionRate: Math.min(dailyCompletionRate, 100),
+    subjectProgress,
+  };
+};
+
 export const generateInsights = (
   sessions: StudySession[],
   subjects: Subject[]
@@ -130,27 +175,94 @@ export const generateInsights = (
   return insights;
 };
 
-export const getWeeklyProgress = (sessions: StudySession[]) => {
+export const getWeeklyProgress = (sessions: StudySession[], subjects: Subject[] = []) => {
   const now = new Date();
-  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  
+  // Calculate the start of the current week (Sunday)
+  const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
+  const startOfWeek = new Date(now);
+  startOfWeek.setDate(now.getDate() - currentDay);
+  startOfWeek.setHours(0, 0, 0, 0);
 
-  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const dailyData = days.map((day, index) => {
-    const targetDate = new Date(weekAgo);
-    targetDate.setDate(weekAgo.getDate() + index);
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const dayAbbreviations = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  
+  // Calculate total daily target from all subjects
+  const totalDailyTarget = subjects.reduce((sum, subject) => {
+    return sum + (subject.targetHoursPerDay || 0);
+  }, 0);
+  
+  const dailyData = days.map((dayName, index) => {
+    const targetDate = new Date(startOfWeek);
+    targetDate.setDate(startOfWeek.getDate() + index);
 
     const daySessions = sessions.filter(s => {
       const sessionDate = new Date(s.startTime);
-      return sessionDate.toDateString() === targetDate.toDateString();
+      sessionDate.setHours(0, 0, 0, 0);
+      return sessionDate.getTime() === targetDate.getTime();
     });
 
     const minutes = daySessions.reduce((sum, s) => sum + (s.durationMinutes || 0), 0);
+    const hours = Math.round((minutes / 60) * 10) / 10;
+
+    // Calculate completion rate based on daily target
+    const completionRate = totalDailyTarget > 0 
+      ? Math.min(Math.round((hours / totalDailyTarget) * 100), 100)
+      : 0;
+
+    // Check if this day is today
+    const isToday = targetDate.toDateString() === now.toDateString();
+    
+    // Check if this day is in the future
+    const isFuture = targetDate > now;
 
     return {
-      day,
-      hours: Math.round((minutes / 60) * 10) / 10,
+      day: dayAbbreviations[index],
+      fullDay: dayName,
+      date: targetDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      hours,
+      completionRate,
+      isToday,
+      isFuture,
     };
   });
 
   return dailyData;
+};
+
+export const calculateWeeklySubjectProgress = (sessions: StudySession[], subjects: Subject[]) => {
+  const now = new Date();
+  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  const thisWeekSessions = sessions.filter(s => {
+    const sessionDate = new Date(s.startTime);
+    return sessionDate >= weekAgo && sessionDate <= now;
+  });
+
+  const subjectProgress = subjects.map(subject => {
+    const subjectWeekSessions = thisWeekSessions.filter(s => s.subjectId === subject.id);
+    const weekMinutes = subjectWeekSessions.reduce((sum, s) => sum + (s.durationMinutes || 0), 0);
+    const weekHours = weekMinutes / 60;
+    const weeklyTarget = subject.targetHoursPerWeek || 0;
+    const completionRate = weeklyTarget > 0 ? Math.round((weekHours / weeklyTarget) * 100) : 0;
+
+    return {
+      subject: subject.name,
+      color: subject.color,
+      hoursStudied: Math.round(weekHours * 10) / 10,
+      targetHours: weeklyTarget,
+      completionRate: Math.min(completionRate, 100),
+    };
+  }).filter(s => s.targetHours > 0);
+
+  const totalWeeklyTarget = subjects.reduce((sum, subject) => sum + (subject.targetHoursPerWeek || 0), 0);
+  const totalWeekHours = thisWeekSessions.reduce((sum, s) => sum + (s.durationMinutes || 0), 0) / 60;
+  const overallWeeklyCompletion = totalWeeklyTarget > 0 ? Math.round((totalWeekHours / totalWeeklyTarget) * 100) : 0;
+
+  return {
+    subjectProgress,
+    totalWeekHours: Math.round(totalWeekHours * 10) / 10,
+    totalWeeklyTarget,
+    overallWeeklyCompletion: Math.min(overallWeeklyCompletion, 100),
+  };
 };

@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Plus, BookOpen, Trash2, Edit2 } from 'lucide-react';
-import { Subject } from '../types';
+import { Plus, BookOpen, Trash2, Edit2, Clock, TrendingUp } from 'lucide-react';
+import { Subject, StudySession } from '../types';
 
 interface SubjectManagerProps {
   subjects: Subject[];
+  sessions: StudySession[];
   onAddSubject: (subject: Omit<Subject, 'id'>) => void;
   onUpdateSubject: (id: string, subject: Partial<Subject>) => void;
   onDeleteSubject: (id: string) => void;
@@ -17,6 +18,7 @@ const COLORS = [
 
 export function SubjectManager({
   subjects,
+  sessions,
   onAddSubject,
   onUpdateSubject,
   onDeleteSubject,
@@ -30,7 +32,38 @@ export function SubjectManager({
     difficulty: 3,
     priority: 3,
     targetHoursPerWeek: 5,
+    targetHoursPerDay: 1,
   });
+
+  // Calculate time spent for each subject
+  const getSubjectStats = (subjectId: string) => {
+    const subjectSessions = sessions.filter(session => 
+      session.subjectId === subjectId && session.completed
+    );
+    
+    const totalMinutes = subjectSessions.reduce((total, session) => 
+      total + (session.durationMinutes || 0), 0
+    );
+    
+    const totalHours = Math.round(totalMinutes / 60 * 10) / 10;
+    const sessionCount = subjectSessions.length;
+    
+    // Calculate this week's hours
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    
+    const thisWeekMinutes = subjectSessions
+      .filter(session => new Date(session.startTime) >= oneWeekAgo)
+      .reduce((total, session) => total + (session.durationMinutes || 0), 0);
+    
+    const thisWeekHours = Math.round(thisWeekMinutes / 60 * 10) / 10;
+    
+    return {
+      totalHours,
+      sessionCount,
+      thisWeekHours,
+    };
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,6 +79,7 @@ export function SubjectManager({
       difficulty: 3,
       priority: 3,
       targetHoursPerWeek: 5,
+      targetHoursPerDay: 1,
     });
     setIsAdding(false);
   };
@@ -57,6 +91,7 @@ export function SubjectManager({
       difficulty: subject.difficulty,
       priority: subject.priority,
       targetHoursPerWeek: subject.targetHoursPerWeek,
+      targetHoursPerDay: subject.targetHoursPerDay || 1,
     });
     setEditingId(subject.id);
     setIsAdding(true);
@@ -71,6 +106,7 @@ export function SubjectManager({
       difficulty: 3,
       priority: 3,
       targetHoursPerWeek: 5,
+      targetHoursPerDay: 1,
     });
   };
 
@@ -128,7 +164,7 @@ export function SubjectManager({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <label className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
                   Difficulty (1-5)
@@ -171,6 +207,30 @@ export function SubjectManager({
                   onChange={(e) => setFormData({ ...formData, targetHoursPerWeek: parseInt(e.target.value) })}
                   className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent ${isDarkMode ? 'bg-slate-700 border-slate-600 text-white' : 'border-slate-300'}`}
                 />
+              </div>
+
+              <div>
+                <label className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                  Target hrs/day
+                </label>
+                <select
+                  value={formData.targetHoursPerDay}
+                  onChange={(e) => setFormData({ ...formData, targetHoursPerDay: parseFloat(e.target.value) })}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent ${isDarkMode ? 'bg-slate-700 border-slate-600 text-white' : 'border-slate-300'}`}
+                >
+                  <option value={0.5}>30 min</option>
+                  <option value={1}>1 hour</option>
+                  <option value={1.5}>1.5 hours</option>
+                  <option value={2}>2 hours</option>
+                  <option value={2.5}>2.5 hours</option>
+                  <option value={3}>3 hours</option>
+                  <option value={3.5}>3.5 hours</option>
+                  <option value={4}>4 hours</option>
+                  <option value={4.5}>4.5 hours</option>
+                  <option value={5}>5 hours</option>
+                  <option value={6}>6 hours</option>
+                  <option value={8}>8 hours</option>
+                </select>
               </div>
             </div>
 
@@ -228,20 +288,80 @@ export function SubjectManager({
                   </button>
                 </div>
               </div>
-              <div className={`space-y-2 text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                <div className="flex justify-between">
-                  <span>Difficulty:</span>
-                  <span className="font-medium">{'⭐'.repeat(subject.difficulty)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Priority:</span>
-                  <span className="font-medium">{'🔥'.repeat(subject.priority)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Target:</span>
-                  <span className="font-medium">{subject.targetHoursPerWeek}h/week</span>
-                </div>
-              </div>
+              {(() => {
+                const stats = getSubjectStats(subject.id);
+                const weeklyProgress = subject.targetHoursPerWeek > 0 
+                  ? Math.min((stats.thisWeekHours / subject.targetHoursPerWeek) * 100, 100)
+                  : 0;
+                
+                return (
+                  <div className="space-y-3">
+                    {/* Time Spent Section */}
+                    <div className={`p-3 rounded-lg ${isDarkMode ? 'bg-slate-700' : 'bg-slate-50'}`}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Clock className="text-amber-500" size={16} />
+                        <span className={`text-sm font-medium ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                          Time Spent
+                        </span>
+                      </div>
+                      <div className={`space-y-1 text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                        <div className="flex justify-between">
+                          <span>Total:</span>
+                          <span className="font-medium">{stats.totalHours}h ({stats.sessionCount} sessions)</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>This week:</span>
+                          <span className="font-medium">{stats.thisWeekHours}h</span>
+                        </div>
+                      </div>
+                      
+                      {/* Weekly Progress Bar */}
+                      <div className="mt-2">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className={`text-xs ${isDarkMode ? 'text-slate-500' : 'text-slate-500'}`}>
+                            Weekly Goal
+                          </span>
+                          <span className={`text-xs font-medium ${
+                            weeklyProgress >= 100 
+                              ? 'text-green-500' 
+                              : weeklyProgress >= 75 
+                                ? 'text-amber-500' 
+                                : 'text-slate-500'
+                          }`}>
+                            {Math.round(weeklyProgress)}%
+                          </span>
+                        </div>
+                        <div className={`w-full rounded-full h-2 ${isDarkMode ? 'bg-slate-600' : 'bg-slate-200'}`}>
+                          <div
+                            className={`h-full rounded-full transition-all duration-300 ${
+                              weeklyProgress >= 100 
+                                ? 'bg-gradient-to-r from-green-500 to-emerald-600' 
+                                : 'bg-gradient-to-r from-amber-500 to-orange-600'
+                            }`}
+                            style={{ width: `${weeklyProgress}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Subject Details */}
+                    <div className={`space-y-2 text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                      <div className="flex justify-between">
+                        <span>Difficulty:</span>
+                        <span className="font-medium">{'⭐'.repeat(subject.difficulty)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Priority:</span>
+                        <span className="font-medium">{'🔥'.repeat(subject.priority)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Target:</span>
+                        <span className="font-medium">{subject.targetHoursPerWeek}h/week</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           ))}
         </div>

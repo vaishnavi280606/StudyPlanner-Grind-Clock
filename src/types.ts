@@ -5,6 +5,7 @@ export interface Subject {
   difficulty: number;
   priority: number;
   targetHoursPerWeek: number;
+  targetHoursPerDay?: number;
 }
 
 export interface StudySession {
@@ -21,11 +22,17 @@ export interface StudySession {
 export interface StudyGoal {
   id: string;
   subjectId?: string;
+  subjectIds?: string[]; // For exams with multiple subjects
   title: string;
   description: string;
   targetDate?: Date;
   completed: boolean;
   completedAt?: Date;
+  isExam?: boolean;
+  examDate?: Date;
+  examTime?: string;
+  examLocation?: string;
+  studyHoursTarget?: number;
 }
 
 export interface ScheduleSlot {
