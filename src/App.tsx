@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BookOpen, LayoutDashboard, Clock, Target, History, Zap, Moon, Sun, Play, Pause, BarChart3, Brain, Lightbulb, X } from 'lucide-react';
+import { BookOpen, LayoutDashboard, Clock, Target, History, Zap, Moon, Sun, Play, Pause, BarChart3, Brain, Lightbulb, Menu, X } from 'lucide-react';
 import { Subject, StudySession, StudyGoal } from './types';
 import { storage } from './utils/storage';
 import { Dashboard } from './components/Dashboard';
@@ -11,6 +11,7 @@ import { AdvancedAnalytics } from './components/AdvancedAnalytics';
 import { AIRecommendations } from './components/AIRecommendations';
 import { StudyTechniques } from './components/StudyTechniques';
 import { Reminder } from './components/Reminder';
+import { ProtectedRoute } from './components/ProtectedRoute';
 import { UserProfile } from './components/UserProfile';
 import { GoalReminderPopup } from './components/GoalReminderPopup';
 
@@ -591,7 +592,11 @@ function AppContent() {
 }
 
 function App() {
-  return <AppContent />;
+  return (
+    <ProtectedRoute>
+      <AppContent />
+    </ProtectedRoute>
+  );
 }
 
 export default App;
