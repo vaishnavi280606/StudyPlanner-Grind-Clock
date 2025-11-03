@@ -1,2 +1,3 @@
-StudyPlanner-GrindSchedule
+StudyPlanner-GrindClock
+
 
