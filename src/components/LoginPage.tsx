@@ -17,18 +17,26 @@ export function LoginPage() {
     setLoading(true);
     setError('');
 
+    console.log('Attempting authentication:', { isLogin, email });
+
     try {
-      const { error } = isLogin 
+      const result = isLogin 
         ? await signIn(email, password)
         : await signUp(email, password);
 
-      if (error) {
-        setError(error.message);
+      console.log('Auth result:', result);
+
+      if (result.error) {
+        console.error('Auth error:', result.error);
+        setError(result.error.message);
       } else if (!isLogin) {
         setError('Check your email for the confirmation link!');
+      } else {
+        console.log('Sign in successful!');
       }
     } catch (err) {
-      setError('An unexpected error occurred');
+      console.error('Unexpected error:', err);
+      setError('An unexpected error occurred: ' + (err as Error).message);
     } finally {
       setLoading(false);
     }

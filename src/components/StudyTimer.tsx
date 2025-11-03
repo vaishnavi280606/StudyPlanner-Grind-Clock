@@ -106,9 +106,17 @@ export function StudyTimer({
                 {subjects.find((s) => s.id === timerState.selectedSubjectId)?.name}
               </span>
             </div>
-            <div className={`text-6xl font-bold mb-6 font-mono ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+            <div className={`text-6xl font-bold mb-6 font-mono ${isDarkMode ? 'text-white' : 'text-slate-900'} ${timerState.isPaused ? 'opacity-60' : ''}`}>
               {formatTime(timerState.elapsedSeconds)}
             </div>
+            {timerState.isPaused && (
+              <div className={`text-center mb-4 ${isDarkMode ? 'text-yellow-400' : 'text-yellow-600'}`}>
+                <div className="flex items-center justify-center gap-2">
+                  <Pause size={16} />
+                  <span className="text-sm font-medium">Timer Paused</span>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex gap-3">
@@ -120,7 +128,7 @@ export function StudyTimer({
                 <Pause size={20} />
                 Pause
               </button>
-            ) : (
+            ) : timerState.startTime ? (
               <button
                 onClick={onTimerResume}
                 className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-lg hover:from-amber-600 hover:to-orange-700 transition-colors font-semibold"
@@ -128,7 +136,7 @@ export function StudyTimer({
                 <Play size={20} />
                 Resume
               </button>
-            )}
+            ) : null}
             <button
               onClick={onTimerStop}
               className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-semibold"

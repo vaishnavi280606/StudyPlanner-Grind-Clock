@@ -14,6 +14,7 @@ import { Reminder } from './components/Reminder';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { UserProfile } from './components/UserProfile';
 import { GoalReminderPopup } from './components/GoalReminderPopup';
+import { AIChatbot } from './components/AIChatbot';
 
 type View = 'dashboard' | 'subjects' | 'timer' | 'history' | 'goals' | 'analytics' | 'recommendations' | 'techniques';
 
@@ -36,7 +37,15 @@ function AppContent() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [showSuccessPopper, setShowSuccessPopper] = useState(false);
   const [showGoalReminder, setShowGoalReminder] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  
+  // Draggable timer position state
+  const [timerPosition, setTimerPosition] = useState(() => {
+    const saved = localStorage.getItem('grind_clock_timer_position');
+    return saved ? JSON.parse(saved) : { x: window.innerWidth - 300, y: 80 }; // Default top-right position
+  });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   
   // Persistent timer state
   const [timerState, setTimerState] = useState<TimerState>({
@@ -208,11 +217,27 @@ function AppContent() {
   };
 
   const handleTimerPause = () => {
-    setTimerState(prev => ({ ...prev, isPaused: true }));
+    setTimerState(prev => ({ 
+      ...prev, 
+      isPaused: true,
+      isRunning: true // Keep running state true, just paused
+    }));
   };
 
   const handleTimerResume = () => {
-    setTimerState(prev => ({ ...prev, isPaused: false }));
+    if (!timerState.startTime) return;
+    
+    // Calculate the time that was paused and adjust start time
+    const now = new Date();
+    const pausedDuration = Math.floor((now.getTime() - timerState.startTime.getTime()) / 1000) - timerState.elapsedSeconds;
+    const adjustedStartTime = new Date(timerState.startTime.getTime() + (pausedDuration * 1000));
+    
+    setTimerState(prev => ({ 
+      ...prev, 
+      isPaused: false,
+      isRunning: true,
+      startTime: adjustedStartTime
+    }));
   };
 
   const handleTimerStop = () => {
@@ -254,6 +279,111 @@ function AppContent() {
     setTimerState(prev => ({ ...prev, ...updates }));
   };
 
+  // Drag handlers for floating timer
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+    const rect = (e.target as HTMLElement).closest('.timer-widget')?.getBoundingClientRect();
+    if (rect) {
+      setDragOffset({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      });
+    }
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+    const touch = e.touches[0];
+    const rect = (e.target as HTMLElement).closest('.timer-widget')?.getBoundingClientRect();
+    if (rect) {
+      setDragOffset({
+        x: touch.clientX - rect.left,
+        y: touch.clientY - rect.top
+      });
+    }
+  };
+
+  const updatePosition = (clientX: number, clientY: number) => {
+    if (!isDragging) return;
+    
+    const newX = clientX - dragOffset.x;
+    const newY = clientY - dragOffset.y;
+    
+    // Get viewport dimensions and widget size
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const widgetWidth = 280; // Approximate widget width
+    const widgetHeight = 120; // Approximate widget height
+    const headerHeight = 80; // Header height
+    const sidebarWidth = 256; // Sidebar width
+    
+    // Constrain position within bounds
+    const constrainedX = Math.max(
+      sidebarWidth + 10, // Don't go behind sidebar
+      Math.min(newX, viewportWidth - widgetWidth - 10) // Don't go beyond right edge
+    );
+    const constrainedY = Math.max(
+      headerHeight + 10, // Don't go above header
+      Math.min(newY, viewportHeight - widgetHeight - 10) // Don't go below bottom
+    );
+    
+    setTimerPosition({ x: constrainedX, y: constrainedY });
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    updatePosition(e.clientX, e.clientY);
+  };
+
+  const handleTouchMove = (e: TouchEvent) => {
+    e.preventDefault();
+    const touch = e.touches[0];
+    updatePosition(touch.clientX, touch.clientY);
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleDoubleClick = () => {
+    // Reset to default position (top-right)
+    setTimerPosition({ x: window.innerWidth - 300, y: 80 });
+  };
+
+  // Add global mouse and touch event listeners for dragging
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.addEventListener('touchmove', handleTouchMove, { passive: false });
+      document.addEventListener('touchend', handleMouseUp);
+      document.body.style.cursor = 'grabbing';
+      document.body.style.userSelect = 'none';
+    } else {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isDragging, dragOffset]);
+
+  // Save timer position to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('grind_clock_timer_position', JSON.stringify(timerPosition));
+  }, [timerPosition]);
+
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
@@ -284,74 +414,70 @@ function AppContent() {
 
   const handleNavClick = (viewId: View) => {
     setCurrentView(viewId);
-    setIsSidebarOpen(false); // Close sidebar when navigating
   };
 
   return (
-    <div className={`min-h-screen transition-colors ${isDarkMode ? 'bg-gradient-to-br from-slate-900 to-slate-800' : 'bg-gradient-to-br from-slate-50 to-slate-100'}`}>
-      {/* Grind Menu Sidebar */}
-      {isSidebarOpen && (
-        <div className="fixed inset-0 z-50">
-          <div className="fixed inset-0 bg-black bg-opacity-50" onClick={() => setIsSidebarOpen(false)} />
-          <div className={`fixed top-0 left-0 h-full w-64 shadow-lg transform transition-transform ${
-            isDarkMode ? 'bg-slate-800' : 'bg-white'
-          }`}>
-            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-              <div className="flex items-center gap-3">
-                <div className="bg-gradient-to-br from-amber-500 to-orange-600 p-2 rounded-xl shadow-lg">
-                  <Zap className="text-white" size={24} />
-                </div>
-                <div>
-                  <h2 className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Grind Menu</h2>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsSidebarOpen(false)}
-                className={`p-2 rounded-lg transition-colors ${
-                  isDarkMode ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-gray-100 text-gray-600'
-                }`}
-              >
-                <X size={20} />
-              </button>
-            </div>
-            
-            <div className="p-4 space-y-2">
-              {allNavigation.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => handleNavClick(item.id)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all text-left ${
-                      currentView === item.id
-                        ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-md'
-                        : isDarkMode 
-                        ? 'text-slate-300 hover:bg-slate-700' 
-                        : 'text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    <Icon size={20} />
-                    <span>{item.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="absolute bottom-4 left-4 right-4">
-              <UserProfile isDarkMode={isDarkMode} />
-            </div>
+    <div className={`min-h-screen flex transition-colors ${isDarkMode ? 'bg-gradient-to-br from-slate-900 to-slate-800' : 'bg-gradient-to-br from-slate-50 to-slate-100'}`}>
+      {/* Persistent Left Sidebar - Grind Menu */}
+      <div className={`w-64 h-screen fixed left-0 top-0 shadow-lg z-30 transition-transform duration-300 ${
+        isSidebarOpen ? 'translate-x-0' : '-translate-x-64'
+      } ${isDarkMode ? 'bg-slate-800 border-r border-slate-700' : 'bg-white border-r border-slate-200'}`}>
+        <div className="flex items-center gap-3 p-6 border-b border-gray-200 dark:border-gray-700">
+          <div className="bg-gradient-to-br from-amber-500 to-orange-600 p-2 rounded-xl shadow-lg">
+            <Zap className="text-white" size={28} />
+          </div>
+          <div>
+            <h2 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Grind Menu</h2>
+            <p className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Navigation</p>
           </div>
         </div>
-      )}
+            
+        
+        <div className="flex-1 p-4 space-y-2 overflow-y-auto">
+          {allNavigation.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setCurrentView(item.id)}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all text-left ${
+                  currentView === item.id
+                    ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-md'
+                    : isDarkMode 
+                    ? 'text-slate-300 hover:bg-slate-700' 
+                    : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <Icon size={20} />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
 
-      <nav className={`shadow-md border-b transition-colors ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
-        <div className="max-w-7xl mx-auto px-6 py-4">
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+          <UserProfile isDarkMode={isDarkMode} />
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      <div className={`flex-1 transition-all duration-300 ${isSidebarOpen ? 'ml-64' : 'ml-0'}`}>
+        <nav className={`shadow-md border-b transition-colors ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
+        <div className="max-w-7xl mx-auto px-6 py-6">
           <div className="flex items-center justify-between">
-            {/* Clickable Logo and Text */}
-            <button
-              onClick={() => setIsSidebarOpen(true)}
-              className="flex items-center gap-3 p-2 rounded-lg transition-all hover:bg-opacity-10 hover:bg-gray-500"
-            >
+            {/* Logo and Text */}
+            <div className="flex items-center gap-3">
+              {/* Menu Toggle Button */}
+              <button
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                className={`p-2 rounded-lg transition-colors ${
+                  isDarkMode ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-100 text-slate-600'
+                }`}
+                title={isSidebarOpen ? 'Hide menu' : 'Show menu'}
+              >
+                {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
+              </button>
+              
               <div className="bg-gradient-to-br from-amber-500 to-orange-600 p-2 rounded-xl shadow-lg">
                 <Zap className="text-white" size={28} />
               </div>
@@ -359,7 +485,7 @@ function AppContent() {
                 <h1 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Grind Clock</h1>
                 <p className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Push Your Limits</p>
               </div>
-            </button>
+            </div>
             
             {/* Main Navigation - Desktop */}
             <div className="hidden lg:flex gap-2 items-center">
@@ -426,9 +552,9 @@ function AppContent() {
             })}
           </div>
         </div>
-      </nav>
+        </nav>
 
-      <main className="max-w-7xl mx-auto px-6 py-8">
+        <main className="max-w-7xl mx-auto px-6 py-8 pb-24">
         {currentView === 'dashboard' && (
           <Dashboard subjects={subjects} sessions={sessions} goals={goals} isDarkMode={isDarkMode} />
         )}
@@ -521,13 +647,36 @@ function AppContent() {
         />
       )}
 
-      {/* Floating Timer Widget - shows when timer is running and not on timer page */}
+      {/* Draggable Floating Timer Widget - shows when timer is running and not on timer page */}
       {timerState.isRunning && currentView !== 'timer' && (
-        <div className="fixed bottom-6 right-6 z-50">
-          <div className={`rounded-xl p-4 shadow-2xl border backdrop-blur-sm ${
-            isDarkMode ? 'bg-slate-800/90 border-slate-700' : 'bg-white/90 border-slate-200'
-          }`}>
-            <div className="flex items-center gap-3">
+        <div 
+          className="fixed z-40 timer-widget" 
+          style={{ 
+            left: `${timerPosition.x}px`, 
+            top: `${timerPosition.y}px`,
+            animation: isDragging ? 'none' : 'slideInRight 0.3s ease-out'
+          }}
+        >
+          <div 
+            className={`rounded-xl p-4 shadow-2xl border backdrop-blur-sm transition-all hover:shadow-3xl cursor-grab active:cursor-grabbing ${
+              isDarkMode ? 'bg-slate-800/95 border-slate-700' : 'bg-white/95 border-slate-200'
+            } ${isDragging ? 'shadow-3xl scale-105' : ''}`}
+            onMouseDown={handleMouseDown}
+            onTouchStart={handleTouchStart}
+            onDoubleClick={handleDoubleClick}
+            title="Drag to move • Double-click to reset position"
+          >
+            {/* Drag Handle */}
+            <div className={`flex justify-center mb-1 ${isDragging ? 'opacity-100' : 'opacity-50 hover:opacity-100'} transition-opacity`}>
+              <div className={`flex gap-1 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                <div className="w-1 h-1 rounded-full bg-current"></div>
+                <div className="w-1 h-1 rounded-full bg-current"></div>
+                <div className="w-1 h-1 rounded-full bg-current"></div>
+                <div className="w-1 h-1 rounded-full bg-current"></div>
+              </div>
+            </div>
+            
+            <div className="flex items-center justify-between gap-3 mb-2">
               <div className="flex items-center gap-2">
                 <div
                   className="w-3 h-3 rounded-full animate-pulse"
@@ -539,11 +688,12 @@ function AppContent() {
                   {subjects.find((s) => s.id === timerState.selectedSubjectId)?.name || 'Study Session'}
                 </span>
               </div>
-              <div className={`text-lg font-mono font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
-                {formatTime(timerState.elapsedSeconds)}
-              </div>
+              <Clock className={`${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`} size={16} />
             </div>
-            <div className="flex gap-2 mt-3">
+            <div className={`text-2xl font-mono font-bold text-center ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+              {formatTime(timerState.elapsedSeconds)}
+            </div>
+            <div className="flex gap-2 mt-3 justify-center">
               {timerState.isPaused ? (
                 <button
                   onClick={handleTimerResume}
@@ -572,10 +722,12 @@ function AppContent() {
             </div>
           </div>
         </div>
-      )}
+        )}
 
-      <footer className={`border-t mt-16 transition-colors ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
-        <div className="max-w-7xl mx-auto px-6 py-6">
+        <footer className={`fixed bottom-0 right-0 border-t transition-all duration-300 z-20 ${
+          isSidebarOpen ? 'left-64' : 'left-0'
+        } ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
+        <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <p className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
               © 2025 Grind Clock. Push your limits every day.
@@ -586,7 +738,11 @@ function AppContent() {
             </div>
           </div>
         </div>
-      </footer>
+        </footer>
+
+        {/* AI Chatbot */}
+        <AIChatbot isDarkMode={isDarkMode} />
+      </div>
     </div>
   );
 }
