@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Bot, X, Send, Minimize2 } from 'lucide-react';
+import { Bot, X, Send, Trash2 } from 'lucide-react';
 
 interface Message {
   id: string;
@@ -13,9 +13,9 @@ interface AIChatbotProps {
 }
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
-const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
+const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
 
-async function callGemini(userMessage: string): Promise<string> {
+async function callGemini(userMessage: string, retryCount = 0): Promise<string> {
   try {
     if (!GEMINI_API_KEY) {
       console.error('No API key found');
@@ -69,6 +69,16 @@ async function callGemini(userMessage: string): Promise<string> {
       if (response.status === 404) {
         return 'API Error: Model not found. Your API key may not have access to this model.';
       }
+      if (response.status === 429) {
+        // Rate limit - retry with exponential backoff
+        if (retryCount < 3) {
+          const waitTime = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+          console.log(`Rate limited. Retrying in ${waitTime}ms...`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+          return callGemini(userMessage, retryCount + 1);
+        }
+        return '⚠️ Rate limit exceeded. The free tier of Gemini API has limited requests per minute.\n\nPlease wait a moment and try again, or:\n• Upgrade your API key at https://aistudio.google.com/\n• Wait 60 seconds before sending another message';
+      }
       
       throw new Error(`API returned status ${response.status}`);
     }
@@ -93,15 +103,13 @@ async function callGemini(userMessage: string): Promise<string> {
 
 export function AIChatbot({ isDarkMode }: AIChatbotProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [isMinimized, setIsMinimized] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      role: 'assistant',
-      content: "Hi! I'm your AI study assistant. 🤖\n\nAsk me about:\n• Math, Science, Programming\n• Study tips and techniques\n• Explaining concepts\n\nHow can I help you today?",
-      timestamp: new Date()
-    }
-  ]);
+  const initialMessage: Message = {
+    id: '1',
+    role: 'assistant',
+    content: "Hi! I'm your AI study assistant. 🤖\n\nAsk me about:\n• Math, Science, Programming\n• Study tips and techniques\n• Explaining concepts\n\nHow can I help you today?",
+    timestamp: new Date()
+  };
+  const [messages, setMessages] = useState<Message[]>([initialMessage]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -148,6 +156,10 @@ export function AIChatbot({ isDarkMode }: AIChatbotProps) {
     }
   };
 
+  const handleClearChat = () => {
+    setMessages([initialMessage]);
+  };
+
   if (!isOpen) {
     return (
       <button
@@ -169,9 +181,7 @@ export function AIChatbot({ isDarkMode }: AIChatbotProps) {
 
   return (
     <div
-      className={`fixed bottom-6 right-6 w-96 shadow-2xl rounded-2xl flex flex-col z-50 transition-all ${
-        isMinimized ? 'h-14' : 'h-[600px]'
-      } ${isDarkMode ? 'bg-slate-800 border border-slate-700' : 'bg-white border border-slate-200'}`}
+      className={`fixed bottom-6 right-6 w-96 h-[600px] shadow-2xl rounded-2xl flex flex-col z-50 transition-all ${isDarkMode ? 'bg-slate-800 border border-slate-700' : 'bg-white border border-slate-200'}`}
     >
       {/* Header */}
       <div
@@ -190,24 +200,24 @@ export function AIChatbot({ isDarkMode }: AIChatbotProps) {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setIsMinimized(!isMinimized)}
+            onClick={handleClearChat}
             className="text-white/80 hover:text-white transition-colors"
+            title="Clear chat"
           >
-            <Minimize2 size={18} />
+            <Trash2 size={18} />
           </button>
           <button
             onClick={() => setIsOpen(false)}
             className="text-white/80 hover:text-white transition-colors"
+            title="Close"
           >
             <X size={18} />
           </button>
         </div>
       </div>
 
-      {!isMinimized && (
-        <>
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {messages.map((msg) => (
               <div
                 key={msg.id}
@@ -279,10 +289,9 @@ export function AIChatbot({ isDarkMode }: AIChatbotProps) {
             </div>
             <p className={`text-xs mt-2 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
               Press Enter to send • Powered by Google Gemini AI
+              {isLoading && <span className="ml-2">⏳ Thinking...</span>}
             </p>
           </div>
-        </>
-      )}
     </div>
   );
 }

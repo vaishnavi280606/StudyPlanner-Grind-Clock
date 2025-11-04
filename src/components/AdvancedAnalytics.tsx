@@ -34,7 +34,7 @@ export function AdvancedAnalytics({ sessions, subjects, isDarkMode }: AdvancedAn
   const calculateCompletionRate = () => {
     const days = timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : 1;
     const totalTargetHours = subjects.reduce((sum, subject) => {
-      return sum + (subject.target_hours_per_day || 0) * days;
+      return sum + (subject.targetHoursPerDay || 0) * days;
     }, 0);
     
     if (totalTargetHours === 0) return 0;
@@ -275,60 +275,200 @@ export function AdvancedAnalytics({ sessions, subjects, isDarkMode }: AdvancedAn
     </div>
   );
 
-  const renderPerformanceChart = () => (
-    <div className="space-y-6">
-      {/* Focus Rating Trends */}
-      <div className={`p-6 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-        <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-          Focus Rating Trends
-        </h3>
-        <div className="h-64 flex items-end justify-between space-x-1">
-          {dailyTrends.filter(d => d.avgFocus > 0).map((day, index) => {
-            const height = (day.avgFocus / 5) * 100;
-            
-            return (
-              <div key={index} className="flex flex-col items-center flex-1">
-                <div 
-                  className="w-full bg-purple-500 rounded-t transition-all duration-300 hover:bg-purple-600 min-h-[4px]"
-                  style={{ height: `${Math.max(height, 8)}%` }}
-                  title={`${day.date}: ${day.avgFocus}/5`}
-                />
-                <span className={`text-xs mt-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                  {day.date.split(' ')[1]}
-                </span>
-              </div>
-            );
-          })}
+  const renderPerformanceChart = () => {
+    const now = new Date();
+    
+    // Start from the beginning of current month
+    const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    startDate.setHours(0, 0, 0, 0);
+    
+    // Calculate total days from start of month to today
+    const totalDays = now.getDate();
+    
+    const monthName = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    
+    // Calculate daily trends for current month only
+    const allDaysTrends = [];
+    
+    for (let i = 0; i < totalDays; i++) {
+      const date = new Date(startDate);
+      date.setDate(date.getDate() + i);
+      
+      const nextDate = new Date(date);
+      nextDate.setDate(date.getDate() + 1);
+      
+      const daySessions = sessions.filter(s => {
+        const sessionDate = new Date(s.startTime);
+        return sessionDate >= date && sessionDate < nextDate;
+      });
+      
+      const dayMinutes = daySessions.reduce((sum, s) => sum + (s.durationMinutes || 0), 0);
+      const dayHours = Math.round((dayMinutes / 60) * 10) / 10;
+      
+      const sessionsWithFocus = daySessions.filter(s => s.focusRating);
+      const avgFocus = sessionsWithFocus.length > 0
+        ? Math.round(daySessions.reduce((sum, s) => sum + (s.focusRating || 0), 0) / sessionsWithFocus.length * 10) / 10
+        : null;
+      
+      allDaysTrends.push({
+        date: date.getDate(),
+        fullDate: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        monthYear: date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+        hours: dayHours,
+        sessions: daySessions.length,
+        avgFocus,
+      });
+    }
+    
+    const hasData = allDaysTrends.some(d => d.avgFocus !== null);
+    
+    // Calculate width for scrollable area (each day gets 40px)
+    const chartWidth = Math.max(totalDays * 40, 800);
+    
+    return (
+      <div className={`p-8 rounded-xl ${isDarkMode ? 'bg-slate-800' : 'bg-white'} border ${isDarkMode ? 'border-slate-700' : 'border-slate-200'} shadow-lg`}>
+        <div className="mb-6">
+          <h3 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+            Performance Overview
+          </h3>
+          <p className={`text-sm mt-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+            Focus rating trends for {monthName} ({totalDays} days)
+          </p>
         </div>
-      </div>
+        
+        {hasData ? (
+          <div className="h-80 relative flex">
+            {/* Y-axis (fixed) */}
+            <div className="flex-shrink-0 w-12 flex flex-col justify-between text-sm font-medium text-slate-500" style={{ height: 'calc(100% - 3rem)' }}>
+              <span>5.0</span>
+              <span>4.0</span>
+              <span>3.0</span>
+              <span>2.0</span>
+              <span>1.0</span>
+              <span>0.0</span>
+            </div>
+            
+            {/* Scrollable Chart area */}
+            <div 
+              className="flex-1 overflow-x-auto overflow-y-hidden ml-2 mr-4 rounded-lg" 
+              style={{ 
+                scrollbarWidth: 'thin',
+                scrollbarColor: isDarkMode ? '#475569 #1e293b' : '#cbd5e1 #f1f5f9'
+              }}
+            >
+              <div className="h-full relative pb-16" style={{ width: `${chartWidth}px`, minWidth: '100%' }}>
 
-      {/* Hourly Distribution */}
-      <div className={`p-6 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-        <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-          Study Hours by Time of Day
-        </h3>
-        <div className="h-64 flex items-end justify-between space-x-1">
-          {hourlyDistribution.map((hour, index) => {
-            const maxHours = Math.max(...hourlyDistribution.map(h => h.hours));
-            const height = maxHours > 0 ? (hour.hours / maxHours) * 100 : 0;
-            
-            return (
-              <div key={index} className="flex flex-col items-center flex-1">
-                <div 
-                  className="w-full bg-green-500 rounded-t transition-all duration-300 hover:bg-green-600 min-h-[4px]"
-                  style={{ height: `${Math.max(height, 4)}%` }}
-                  title={`${hour.hour}: ${hour.hours}h`}
-                />
-                <span className={`text-xs mt-2 transform -rotate-45 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                  {hour.hour.split(':')[0]}
-                </span>
+                
+                {/* Line graph with gradient fill */}
+                <svg className="absolute inset-0 w-full" style={{ height: 'calc(100% - 3rem)' }} preserveAspectRatio="none" viewBox="0 0 100 100">
+                <defs>
+                  <linearGradient id="focusGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stopColor="rgb(249, 115, 22)" stopOpacity="0.3" />
+                    <stop offset="100%" stopColor="rgb(249, 115, 22)" stopOpacity="0.05" />
+                  </linearGradient>
+                </defs>
+                
+                  {/* Area fill - all days */}
+                  <path
+                    d={`
+                      M 0,100
+                      ${allDaysTrends.map((day, index) => {
+                        const x = (index / Math.max(totalDays - 1, 1)) * 100;
+                        const y = day.avgFocus !== null ? 100 - ((day.avgFocus / 5) * 100) : 100;
+                        return `L ${x},${y}`;
+                      }).join(' ')}
+                      L 100,100
+                      Z
+                    `}
+                    fill="url(#focusGradient)"
+                    opacity="0.6"
+                  />
+                  
+                  {/* Line - connecting all days */}
+                  <path
+                    d={allDaysTrends.map((day, index) => {
+                      const x = (index / Math.max(totalDays - 1, 1)) * 100;
+                      const y = day.avgFocus !== null ? 100 - ((day.avgFocus / 5) * 100) : 100;
+                      return index === 0 ? `M ${x},${y}` : `L ${x},${y}`;
+                    }).join(' ')}
+                    fill="none"
+                    stroke="rgb(249, 115, 22)"
+                    strokeWidth="0.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                  
+                  {/* Data points - all days */}
+                  {allDaysTrends.map((day, index) => {
+                    const x = (index / Math.max(totalDays - 1, 1)) * 100;
+                    const y = day.avgFocus !== null ? 100 - ((day.avgFocus / 5) * 100) : 100;
+                    const hasData = day.avgFocus !== null;
+                    
+                    return (
+                      <g key={index}>
+                        <circle
+                          cx={x}
+                          cy={y}
+                          r={hasData ? "1" : "0.5"}
+                          fill={hasData ? "rgb(249, 115, 22)" : "rgb(203, 213, 225)"}
+                          stroke="white"
+                          strokeWidth="0.3"
+                          className="transition-all cursor-pointer"
+                          vectorEffect="non-scaling-stroke"
+                          style={{ filter: hasData ? 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))' : 'none' }}
+                        >
+                          <title>
+                            {hasData 
+                              ? `${day.fullDate}: ${day.avgFocus}/5 (${day.hours}h studied)`
+                              : `${day.fullDate}: No study session`
+                            }
+                          </title>
+                        </circle>
+                      </g>
+                    );
+                  })}
+                </svg>
+                
+                {/* X-axis labels - All day numbers */}
+                <div className="absolute left-0 text-xs font-medium text-slate-500" style={{ bottom: '2rem', width: '100%' }}>
+                  {allDaysTrends.map((day, index) => {
+                    const xPosition = (index / Math.max(totalDays - 1, 1)) * 100;
+                    return (
+                      <div 
+                        key={index} 
+                        className="absolute text-center" 
+                        style={{ 
+                          left: `${xPosition}%`,
+                          transform: 'translateX(-50%)',
+                          fontSize: totalDays > 20 ? '10px' : '12px'
+                        }}
+                      >
+                        <div className={`absolute bottom-0 left-1/2 transform -translate-x-1/2 w-px h-2 ${isDarkMode ? 'bg-slate-600' : 'bg-slate-300'}`} />
+                        <div className="mt-2">{day.date}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+                
+
               </div>
-            );
-          })}
-        </div>
+            </div>
+          </div>
+        ) : (
+          <div className="h-80 flex flex-col items-center justify-center">
+            <div className={`text-6xl mb-4`}>📊</div>
+            <p className={`text-lg font-medium ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+              No performance data yet
+            </p>
+            <p className={`text-sm mt-2 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+              Complete study sessions with focus ratings to see your performance trends
+            </p>
+          </div>
+        )}
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderTrendsChart = () => (
     <div className="space-y-6">

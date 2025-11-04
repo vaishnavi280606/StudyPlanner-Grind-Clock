@@ -15,6 +15,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { UserProfile } from './components/UserProfile';
 import { GoalReminderPopup } from './components/GoalReminderPopup';
 import { AIChatbot } from './components/AIChatbot';
+import { ExamCountdown } from './components/ExamCountdown';
 
 type View = 'dashboard' | 'subjects' | 'timer' | 'history' | 'goals' | 'analytics' | 'recommendations' | 'techniques';
 
@@ -34,10 +35,14 @@ function AppContent() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [sessions, setSessions] = useState<StudySession[]>([]);
   const [goals, setGoals] = useState<StudyGoal[]>([]);
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const saved = localStorage.getItem('darkMode');
+    return saved ? JSON.parse(saved) : false;
+  });
   const [showSuccessPopper, setShowSuccessPopper] = useState(false);
   const [showGoalReminder, setShowGoalReminder] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [goalsInitialTab, setGoalsInitialTab] = useState<'goals' | 'exams' | 'tracker'>('goals');
   
   // Draggable timer position state
   const [timerPosition, setTimerPosition] = useState(() => {
@@ -69,10 +74,45 @@ function AppContent() {
         
         setSubjects(loadedSubjects);
         setSessions(loadedSessions);
-        setGoals(loadedGoals);
+        
+        // Auto-complete exams that have passed
+        const now = new Date();
+        let goalsUpdated = false;
+        const updatedGoals = loadedGoals.map(goal => {
+          if (goal.isExam && goal.examDate && !goal.completed) {
+            const examDateTime = new Date(goal.examDate);
+            
+            // Set exam time if available
+            if (goal.examTime) {
+              const [hours, minutes] = goal.examTime.split(':').map(Number);
+              examDateTime.setHours(hours, minutes, 0, 0);
+            } else {
+              // If no time specified, consider exam done at end of day
+              examDateTime.setHours(23, 59, 59, 999);
+            }
+            
+            // If exam has passed, mark as completed
+            if (examDateTime < now) {
+              goalsUpdated = true;
+              return {
+                ...goal,
+                completed: true,
+                completedAt: examDateTime
+              };
+            }
+          }
+          return goal;
+        });
+        
+        // Save updated goals if any were auto-completed
+        if (goalsUpdated) {
+          await storage.saveGoals(updatedGoals);
+        }
+        
+        setGoals(updatedGoals);
         
         // Show goal reminder on app load if there are active goals
-        const activeGoals = loadedGoals.filter(g => !g.completed);
+        const activeGoals = updatedGoals.filter(g => !g.completed);
         if (activeGoals.length > 0) {
           // Delay to allow UI to render first
           setTimeout(() => setShowGoalReminder(true), 1000);
@@ -83,6 +123,13 @@ function AppContent() {
     };
     
     loadData();
+
+    // Auto-hide sidebar after 5 seconds
+    const sidebarTimer = setTimeout(() => {
+      setIsSidebarOpen(false);
+    }, 5000);
+
+    return () => clearTimeout(sidebarTimer);
   }, []);
 
   // Show goal reminder when switching to dashboard
@@ -384,6 +431,11 @@ function AppContent() {
     localStorage.setItem('grind_clock_timer_position', JSON.stringify(timerPosition));
   }, [timerPosition]);
 
+  // Save dark mode preference to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('darkMode', JSON.stringify(isDarkMode));
+  }, [isDarkMode]);
+
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
@@ -455,8 +507,8 @@ function AppContent() {
           })}
         </div>
 
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-          <UserProfile isDarkMode={isDarkMode} />
+        <div className="border-t border-gray-200 dark:border-gray-700">
+          <UserProfile isDarkMode={isDarkMode} variant="sidebar" />
         </div>
       </div>
 
@@ -516,7 +568,7 @@ function AppContent() {
                 {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
               </button>
               
-              <UserProfile isDarkMode={isDarkMode} />
+              <UserProfile isDarkMode={isDarkMode} variant="header" />
             </div>
 
             {/* Mobile Navigation */}
@@ -553,6 +605,18 @@ function AppContent() {
           </div>
         </div>
         </nav>
+
+        {/* Exam Countdown Banner - Only on Dashboard */}
+        {currentView === 'dashboard' && (
+          <ExamCountdown 
+            goals={goals} 
+            isDarkMode={isDarkMode}
+            onExamClick={() => {
+              setGoalsInitialTab('exams');
+              setCurrentView('goals');
+            }}
+          />
+        )}
 
         <main className="max-w-7xl mx-auto px-6 py-8 pb-24">
         {currentView === 'dashboard' && (
@@ -596,6 +660,7 @@ function AppContent() {
             onToggleGoal={handleToggleGoal}
             onDeleteGoal={handleDeleteGoal}
             isDarkMode={isDarkMode}
+            initialTab={goalsInitialTab}
           />
         )}
         {currentView === 'analytics' && (

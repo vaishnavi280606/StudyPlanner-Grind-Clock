@@ -1,4 +1,4 @@
-import { Brain, TrendingUp, Target, Clock, Calendar } from 'lucide-react';
+import { Brain, Target, Clock, Calendar } from 'lucide-react';
 import { StudySession, Subject, StudyGoal } from '../types';
 import { calculateStudyStats, generateInsights, getWeeklyProgress, calculateDailyCompletionRate, calculateWeeklySubjectProgress } from '../utils/analytics';
 import { InterestingFacts } from './InterestingFacts';
@@ -17,8 +17,9 @@ export function Dashboard({ subjects, sessions, goals, isDarkMode }: DashboardPr
   const dailyStats = calculateDailyCompletionRate(sessions, subjects);
   const weeklyStats = calculateWeeklySubjectProgress(sessions, subjects);
 
-  const activeGoals = goals.filter(g => !g.completed);
-  const completedGoals = goals.filter(g => g.completed).length;
+  const regularGoals = goals.filter(g => !g.isExam);
+  const activeGoals = regularGoals.filter(g => !g.completed);
+  const completedGoals = regularGoals.filter(g => g.completed).length;
 
   return (
     <div className="space-y-6">
@@ -53,7 +54,7 @@ export function Dashboard({ subjects, sessions, goals, isDarkMode }: DashboardPr
         <div className={`rounded-xl p-6 shadow-md border transition-colors ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
           <div className="flex items-center justify-between mb-2">
             <Target className="text-orange-500" size={24} />
-            <span className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{completedGoals}/{goals.length}</span>
+            <span className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{completedGoals}/{regularGoals.length}</span>
           </div>
           <p className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Goals Completed</p>
         </div>

@@ -12,6 +12,7 @@ interface GoalsManagerProps {
   onToggleGoal: (id: string) => void;
   onDeleteGoal: (id: string) => void;
   isDarkMode: boolean;
+  initialTab?: 'goals' | 'exams' | 'tracker';
 }
 
 export function GoalsManager({
@@ -23,8 +24,9 @@ export function GoalsManager({
   onToggleGoal,
   onDeleteGoal,
   isDarkMode,
+  initialTab = 'goals',
 }: GoalsManagerProps) {
-  const [activeTab, setActiveTab] = useState<'goals' | 'exams' | 'tracker'>('goals');
+  const [activeTab, setActiveTab] = useState<'goals' | 'exams' | 'tracker'>(initialTab);
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
@@ -134,7 +136,13 @@ export function GoalsManager({
         <h2 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Goals & Exams</h2>
         {!isAdding && (
           <button
-            onClick={() => setIsAdding(true)}
+            onClick={() => {
+              setIsAdding(true);
+              setFormData({
+                ...formData,
+                isExam: activeTab === 'exams'
+              });
+            }}
             className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-lg hover:from-amber-600 hover:to-orange-700 transition-colors"
           >
             <Plus size={20} />
@@ -146,7 +154,10 @@ export function GoalsManager({
       {/* Tabs */}
       <div className="flex gap-2">
         <button
-          onClick={() => setActiveTab('goals')}
+          onClick={() => {
+            setActiveTab('goals');
+            cancelEdit();
+          }}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
             activeTab === 'goals'
               ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-md'
@@ -157,7 +168,10 @@ export function GoalsManager({
           Goals ({regularGoals.length})
         </button>
         <button
-          onClick={() => setActiveTab('exams')}
+          onClick={() => {
+            setActiveTab('exams');
+            cancelEdit();
+          }}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
             activeTab === 'exams'
               ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-md'
@@ -168,7 +182,10 @@ export function GoalsManager({
           Exams ({examGoals.length})
         </button>
         <button
-          onClick={() => setActiveTab('tracker')}
+          onClick={() => {
+            setActiveTab('tracker');
+            cancelEdit();
+          }}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
             activeTab === 'tracker'
               ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-md'
@@ -189,30 +206,6 @@ export function GoalsManager({
             {editingId ? 'Edit' : 'New'} {formData.isExam ? 'Exam Schedule' : 'Goal'}
           </h3>
           <div className="space-y-4">
-            {/* Type Toggle */}
-            <div className="flex gap-4">
-              <label className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  name="type"
-                  checked={!formData.isExam}
-                  onChange={() => setFormData({ ...formData, isExam: false })}
-                  className="text-amber-500"
-                />
-                <span className={`text-sm ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>Regular Goal</span>
-              </label>
-              <label className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  name="type"
-                  checked={formData.isExam}
-                  onChange={() => setFormData({ ...formData, isExam: true })}
-                  className="text-amber-500"
-                />
-                <span className={`text-sm ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>Exam Schedule</span>
-              </label>
-            </div>
-
             <div>
               <label className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
                 {formData.isExam ? 'Exam Name' : 'Goal Title'}
