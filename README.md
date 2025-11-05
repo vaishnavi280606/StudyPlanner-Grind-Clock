@@ -203,17 +203,6 @@ This project is open source and available under the [MIT License](LICENSE).
 - [Tailwind CSS](https://tailwindcss.com/) - Styling
 - [Lucide](https://lucide.dev/) - Icons
 
-## 📸 Screenshots
-
-### Dashboard
-![Dashboard](https://via.placeholder.com/800x400?text=Dashboard+Screenshot)
-
-### Performance Analytics
-![Analytics](https://via.placeholder.com/800x400?text=Analytics+Screenshot)
-
-### AI Assistant
-![AI Chat](https://via.placeholder.com/800x400?text=AI+Assistant+Screenshot)
-
 ---
 
 <div align="center">
